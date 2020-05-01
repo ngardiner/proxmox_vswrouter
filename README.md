@@ -26,11 +26,29 @@ Cons:
 
 The following steps will get you up and running:
 
-1. Deploy an Ubuntu 20.04 VM. 
+1. Deploy an Ubuntu 20.04 VM. The following configuration should be used:
+
+   * VM CPU Cores: 1
+   * RAM: Minimum 512MB
+   * Network Interfaces: 2 interfaces
+      * Interface 1: Management. Should be in VLAN 1 
+
+You should deploy 2 VMs if you are running in HA mode. Keep in mind, HA mode needs to be running across two different Proxmox cluster nodes
+
 2. Install the following packages:
-   ```apt-get install apache2 libapache2-mod-php7.4 php7.4-sqlite```
+```apt-get install apache2 libapache2-mod-php7.4 php7.4-mbstring php7.4-sqlite```
 
 3. Clone this git repository under /var/www/html
-git clone
-4. Access the web interface
+```
+cd /var/www/html
+rm index.html
+git clone https://github.com/ngardiner/proxmox_vswrouter .
+```
+
+a2enmod php7.4
+
+4. Access the web interface at ```http://[ip address]/```
 5. Go to the settings tab. This is where you can configure the vswitches that will be used.
+
+   * Your installation, whether Single or Double (Q-in-Q) VLAN tagged will have one VLAN Trunk. Create it first.
+   * You are then able to create Q-in-Q switches and connect them to VLANs on the VLAN Trunk switch.
