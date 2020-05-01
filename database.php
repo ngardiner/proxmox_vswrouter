@@ -15,6 +15,8 @@ if (! file_exists("database.db3")) {
   $sth->execute();
   $sth = $dbh->prepare("INSERT INTO route_tables (rt_name, rt_id, rt_desc) VALUES (:rt_name, :rt_id, :rt_desc)");
   $sth->execute(array(':rt_name' => "Default", ':rt_id' => 253, ':rt_desc' => "Operating System Route Table"));
+  $sth = $dbh->prepare("CREATE TABLE switch_vlans (switch_name varchar(12), vlan_id int, ip_address varchar(15), mask_length int, rt_table int, desc varchar(255), primary key(switch_name, vlan_id))");
+  $sth->execute();
 } else {
   # Check database version
   if (get_setting("db_version") < 1) {
@@ -39,6 +41,18 @@ function add_switch($name, $type, $uplink_type, $iface, $switch, $vlan) {
   return 0;
 }
 
+function add_vlan($switchName, $vlanID, $ipAddress, $maskLength, $rtTable, $vlanDesc) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("INSERT INTO switch_vlans (switch_name, vlan_id, ip_address, mask_length, rt_table, desc) VALUES (:switch_name, :vlan_id, :ip_address, :mask_length, :rt_table, :desc)");
+  if ($sth) {
+    $sth->execute(array(':switch_name' => $switchName, ':vlan_id' => $vlanID, ':ip_address' => $ipAddress, ':mask_length' => $maskLength, ':rt_table' => $rtTable, ':desc' => $vlanDesc));
+    return 0;
+  } else {
+    print_r($dbh->errorInfo());
+    return 1;
+  }
+}
+
 function get_rt_tables() {
   $dbh = new PDO("sqlite:database.db3");
   $sth = $dbh->prepare("SELECT * FROM route_tables");
@@ -46,7 +60,7 @@ function get_rt_tables() {
     $sth->execute();
     return $sth->fetchAll();
   } else {
-    return;
+    return 0;
   }
 }
 
@@ -67,6 +81,13 @@ function get_switches() {
   } else {
     return;
   }
+}
+
+function get_switch_vlans($switchname) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT * FROM switch_vlans WHERE switch_name = :switchname ORDER BY vlan_id ASC");
+  $sth->execute(array(':switchname' => $switchname));
+  return $sth->fetchAll();
 }
 
 function set_setting($setting, $value) {
