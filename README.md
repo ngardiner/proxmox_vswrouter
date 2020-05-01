@@ -57,3 +57,10 @@ service apache2 restart
 
    * Your installation, whether Single or Double (Q-in-Q) VLAN tagged will have one VLAN Trunk. Create it first.
    * You are then able to create Q-in-Q switches and connect them to VLANs on the VLAN Trunk switch.
+
+## Current Status
+
+   * New bridge interfaces - implemented
+   * Delete bridge interfaces - not implemented
+   * New bridge - not implemented
+   * Delete bridge - not implemented
