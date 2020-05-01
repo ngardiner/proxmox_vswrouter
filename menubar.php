@@ -10,7 +10,7 @@
         <a class="nav-link" href="?page=switch">Switches <span class="sr-only">(current)</span></a>
       </li>
       <li class="nav-item active">
-        <a class="nav-link" href="#">Route Tables</a>
+        <a class="nav-link" href="?page=routes">Route Tables</a>
       </li>
       <li class="nav-item active">
         <a class="nav-link" href="?page=settings">Settings</a>
