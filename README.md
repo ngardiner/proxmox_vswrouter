@@ -42,10 +42,15 @@ You should deploy 2 VMs if you are running in HA mode. Keep in mind, HA mode nee
 ```
 cd /var/www/html
 rm index.html
-git clone https://github.com/ngardiner/proxmox_vswrouter .
+git clone https://github.com/ngardiner/proxmox_vswrouter .\
+chown -R www-data:www-data /var/www/html
 ```
 
+4. Enable PHP and restart apache
+```
 a2enmod php7.4
+service apache2 restart
+```
 
 4. Access the web interface at ```http://[ip address]/```
 5. Go to the settings tab. This is where you can configure the vswitches that will be used.
