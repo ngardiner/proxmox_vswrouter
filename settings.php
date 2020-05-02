@@ -18,11 +18,15 @@
     <th>Installation Type</th>
     <td>
       <select name="install_type">
-        <option value="simple">Simple</option>
-        <option value="advanced">Advanced</option>
+      <option value="simple" <?php get_select("install_type", "simple"); ?>>Simple</option>
+      <option value="advanced" <?php get_select("install_type", "advanced"); ?>>Advanced</option>
       </select>
     </td>
     <td><font size=-1>Installation Type. For simple installations, we won't show complex configuration.</font></td>
+  </tr>
+  <tr>
+    <th>Enable MSS Fix</th><td><input type=checkbox /></td>
+    <td><font size=-1>If you use Q-in-Q on a non-jumbo frames (1500 MTU network) you need to enable this to avoid MTU issues</font></td>
   </tr>
   <tr>
     <td>
@@ -127,21 +131,24 @@
 <?php
 if (get_setting("install_type") == "advanced") {
 ?>
+<form action="post.php" method=POST>
 <p><h2>High Availability</h2></p>
 <table>
   <tr>
     <th>Enable High Availability</th>
-    <td><input type="checkbox"></td>
+    <td><input type="checkbox" name="ha_enable" <?php get_checked("ha_enable", "1");?>></td>
   </tr>
   <tr>
     <th>High Availability Method</th>
     <td>
-      <select>
-        <option>Corosync + Pacemaker</option>
+      <select name="ha_mode">
+      <option value="1" <?php get_select("ha_mode", "1"); ?>>Corosync + Pacemaker</option>
       </select>
     </td>
   </tr>
+  <tr><td><input type=submit name="saveHASettings" value="Save HA Settings"</td></tr>
 </table>
+</form>
 <?php
 }
 ?>
