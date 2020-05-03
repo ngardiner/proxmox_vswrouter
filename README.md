@@ -61,6 +61,7 @@ service apache2 restart
 ## Current Status
 
    * New bridge interfaces - implemented
-   * Delete bridge interfaces - not implemented
+   * Delete bridge interfaces - implemented
    * New bridge - not implemented
    * Delete bridge - not implemented
+   * Define routing table - not implemented
