@@ -13,11 +13,11 @@ def debug_print(msg):
     print(msg)
 
 def getOVSBridges():
-    s = subprocess.Popen(["ovs-vsctl list-br"], shell=True, stdout=subprocess.PIPE).stdout
+    s = subprocess.Popen(["/usr/bin/ovs-vsctl list-br"], shell=True, stdout=subprocess.PIPE).stdout
     return s.read().decode("utf-8").splitlines()
 
 def getOVSPorts(bridge):
-    s = subprocess.Popen(["ovs-vsctl list-ports " + bridge], shell=True, stdout=subprocess.PIPE).stdout
+    s = subprocess.Popen(["/usr/bin/ovs-vsctl list-ports " + bridge], shell=True, stdout=subprocess.PIPE).stdout
     return s.read().decode("utf-8").splitlines()
 
 def runCmd(cmd):
@@ -33,7 +33,7 @@ logger.addHandler(handler)
 logger.info("pvsw_agent: Execution begin");
 
 # Ensure IP Forwarding is enabled for all interfaces
-runCmd("sysctl net.ipv4.ip_forward=1")
+runCmd("/sbin/sysctl net.ipv4.ip_forward=1")
 
 # These data structures hold both the OVS defined and DB defined data
 # based on the values assigned
@@ -92,6 +92,7 @@ for switch in dbswitches:
   # Iterate through the vlan interfaces
   for dbport in dbports:
     dbbport = "%svl%s" % (dbport['switch_name'], dbport['vlan_id'])
+    logger.info(dbbport)
     if (bridgeports[dbport['switch_name']].get(dbbport, None) == None):
         bridgeports[dbport['switch_name']][dbbport] = {}
     bridgeports[dbport['switch_name']][dbbport]['ip_address'] = dbport['ip_address']
@@ -114,16 +115,14 @@ for switch in dbswitches:
         bridgeports[dbport['switch_name']][dbbport]['skip_ip'] = 1
       else:
         bridgeports[dbport['switch_name']][dbbport]['db_status'] = 2
-    print("%svl%s" % (dbport['switch_name'], dbport['vlan_id']))
-
-print(bridgeports)
+        logger.info("pvsw_agent: Found new VLAN interface to configure: %svl%s" % (dbport['switch_name'], dbport['vlan_id']))
 
 # Create any missing internal ports
 for bname in bridgeports:
     for bport in bridgeports[bname]:
         if bridgeports[bname][bport].get('db_status',0) == 2:
           logger.info('Port %s does not exist as an OVS port. Adding.' % bport)
-          runCmd("ovs-vsctl add-port %s %s tag=%s -- set interface %s type=internal" % (bname,bport,bridgeports[bname][bport].get('vlan_id', 9999),bport))
+          runCmd("/usr/bin/ovs-vsctl add-port %s %s tag=%s -- set interface %s type=internal" % (bname,bport,bridgeports[bname][bport].get('vlan_id', 9999),bport))
           bridgeports[bname][bport]['db_status'] = 3
 
 # Make sure IP addresses match up
@@ -143,13 +142,13 @@ for bname in bridgeports:
                 # We assign our configured IP address to it.
                 print(bridgeports[bname][bport]['ip_address'] + "aaa");
                 logger.info("pvsw_agent: Adding IP address %s to unconfigured interface %s." % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport));
-                runCmd("ip addr replace %s dev %s" % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport))
+                runCmd("/sbin/ip addr replace %s dev %s" % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport))
 
 # Activate all interfaces that we agree upon (db_status = 3)
 for bname in bridgeports:
   for bport in bridgeports[bname]:
     if bridgeports[bname][bport].get('db_status',0) == 3:
-      runCmd("ip link set %s up" % bport)
+      runCmd("/sbin/ip link set %s up" % bport)
 
 # Now, reverse the search and find interfaces configured which aren't in the
 # DB.
@@ -157,5 +156,5 @@ for bname in bridgeports:
   for bport in bridgeports[bname]:
     if bridgeports[bname][bport].get('db_status',0) == 0:
       logger.info('Port %s does not exist in the Database. Removing.' % bport)
-      runCmd("ovs-vsctl del-port %s %s" % (bname,bport))
+      runCmd("/usr/bin/ovs-vsctl del-port %s %s" % (bname,bport))
       bridgeports[bname][bport]['db_status'] = 1

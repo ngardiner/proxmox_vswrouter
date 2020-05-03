@@ -40,12 +40,14 @@
     foreach ($rt as $rte) {
       print "<option value='".$rte[1]."'>".$rte[0]."</option>";
     }
-    print "</select> ";
-    print "Description: <input name=vlanDesc size=80 />";
+    ?>
+      <option value="99999">Reserve VLAN</option>
+    </select>
+    Description: <input name=vlanDesc size=80 />
+    <?php
     print "<input type=hidden name=switchName value='".$switch[0]."' />";
     ?>
-    <input type=submit name=addVlan value='Go'>
-    <input type=submit name="resvVlan" value='Reserve'>
+    <input type=submit name="addVlan" value='Go'>
   </form>
   </td>
 </tr>

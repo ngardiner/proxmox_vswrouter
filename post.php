@@ -12,12 +12,6 @@
     }
   }
 
-  if (isset($_POST['resvVlan'])) {
-    if (! add_vlan($_POST['switchName'], $_POST['vlanID'], $_POST['ipAddress'], $_POST['maskLength'], 99999, $_POST['vlanDesc'])) {
-      header("Location: /?page=switch");
-    }
-  }
-
   if (isset($_POST['addVlan'])) {
     if (! add_vlan($_POST['switchName'], $_POST['vlanID'], $_POST['ipAddress'], $_POST['maskLength'], $_POST['rtTable'], $_POST['vlanDesc'])) {
       header("Location: /?page=switch");

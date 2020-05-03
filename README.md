@@ -1,6 +1,10 @@
 # Proxmox vSWRouter
 A Virtual Router for Proxmox suitable for creating lab networks easily via a web interface.
 
+Project Aim:
+   * Provide a _lightweight_ router instance for Proxmox installs - no need for firmware or interfacing with a proprietary router solution.
+   * Model functionality on the VMWare Workstation VMNet functionality - allow easy spinning up of networks, primarily for lab testing, but with richer functionality and a web interface.
+
 ## Introduction
 The purpose of this project is to put together a particular network pattern useful for quickly spinning up and down virtual networks using more than one Proxmox host. This is to hopefully provide a similar ease of use to VMWare VMNet interfaces in VMWare workstation, but without the limitations.
 
@@ -58,6 +62,13 @@ service apache2 restart
    * Your installation, whether Single or Double (Q-in-Q) VLAN tagged will have one VLAN Trunk. Create it first.
    * You are then able to create Q-in-Q switches and connect them to VLANs on the VLAN Trunk switch.
 
+6. Enable the cron script which will configure all of the settings
+
+```
+cd /var/www/html
+cp docs/cron.conf /etc/cron.d/pvsw_agent
+```
+
 ## Current Status
 
    * New bridge interfaces - implemented
@@ -65,3 +76,6 @@ service apache2 restart
    * New bridge - not implemented
    * Delete bridge - not implemented
    * Define routing table - not implemented
+   * Enforce routing table - not implemented
+   * Update incorrect IP address - not implemented
+   * Add HA IP address - not implemented
