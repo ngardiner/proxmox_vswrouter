@@ -34,15 +34,18 @@
   }
 
   if (isset($_POST['json'])) {
-    if ($_POST['json'] == "getSwitches") {
-      $switches = get_switches();
-      print json_encode($switches);
-      return;
-    } elseif ($_POST['json'] == "getVLANs") {
+    if ($_POST['json'] == "getVLANs") {
       $vlans = get_switch_vlans($_POST['switch']);
       print json_encode($vlans);
       return;
+    } elseif ($_POST['json'] == "getSettings") {
+      $settings = get_settings();
+      print json_encode($settings);
+      return;
+    } elseif ($_POST['json'] == "getSwitches") {
+      $switches = get_switches();
+      print json_encode($switches);
+      return;
     }
-    print "Hello there\n";
   }
 ?>

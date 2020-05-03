@@ -1,5 +1,16 @@
 #!/usr/bin/python3
 
+#############################################################
+# 
+# pvsw_agent.py
+# Nathan Gardiner <ngardiner@gmail.com>
+#
+# This agent is responsible for enforcing the configuration defined
+# by the web console. It aims to be idempotent, in such a way that it
+# will gather the current network state every minute, compare it to
+# the intended state, and change the values which are not aligned.
+#
+
 import json
 import logging
 import logging.handlers
@@ -12,6 +23,15 @@ from urllib import request, parse
 def debug_print(msg):
     print(msg)
 
+def getDB(query):
+    query = query.encode("utf-8")
+    req = request.Request("http://127.0.0.1/post.php", data=query)
+    resp = request.urlopen(req).read().decode("utf-8")
+    try:
+      return json.loads(resp)
+    except json.decoder.JSONDecodeError:
+      return
+
 def getOVSBridges():
     s = subprocess.Popen(["/usr/bin/ovs-vsctl list-br"], shell=True, stdout=subprocess.PIPE).stdout
     return s.read().decode("utf-8").splitlines()
@@ -19,6 +39,15 @@ def getOVSBridges():
 def getOVSPorts(bridge):
     s = subprocess.Popen(["/usr/bin/ovs-vsctl list-ports " + bridge], shell=True, stdout=subprocess.PIPE).stdout
     return s.read().decode("utf-8").splitlines()
+
+def getSetting(setting):
+    # Iterate through list of settings, find the value
+    global settings
+    value = ""
+    for seti in settings:
+        if seti['setting'] == setting:
+            value = seti['value']
+    return value
 
 def runCmd(cmd):
     subprocess.call(split(cmd), stdout=open(os.devnull, "w"), stderr=subprocess.STDOUT)
@@ -40,6 +69,12 @@ runCmd("/sbin/sysctl net.ipv4.ip_forward=1")
 bridges = {}
 bridgeports = {}
 
+# Fetch settings from server
+settings = getDB("json=getSettings")
+if (not settings):
+    # Issue fetching settings. Set it to an empty list.
+    settings = []
+
 # Gather a list of vswitches on the device
 ovsbridges = getOVSBridges()
 
@@ -56,10 +91,7 @@ for ovsbridge in ovsbridges:
         bridgeports[ovsbridge][ovsport]['local_status'] = 1;
 
 # Connect to the webserver and request a list of vswitches
-data = "json=getSwitches".encode("utf-8")
-req = request.Request("http://127.0.0.1/post.php", data=data)
-resp = request.urlopen(req).read().decode("utf-8")
-dbswitches = json.loads(resp)
+dbswitches = getDB("json=getSwitches")
 
 # Iterate through the list of vswitches
 for switch in dbswitches:
@@ -83,11 +115,8 @@ for switch in dbswitches:
 
 # Connect to the webserver and request a list of vlan interfaces
 for switch in dbswitches:
-  data = "json=getVLANs&switch=%s" % switch['name']
-  data = data.encode("utf-8")
-  req = request.Request("http://127.0.0.1/post.php", data=data)
-  resp = request.urlopen(req).read().decode("utf-8")
-  dbports = json.loads(resp)
+  # Fetch VLAN interfaces from server
+  dbports = getDB("json=getVLANs&switch=%s" % switch['name'])
 
   # Iterate through the vlan interfaces
   for dbport in dbports:
@@ -95,7 +124,9 @@ for switch in dbswitches:
     logger.info(dbbport)
     if (bridgeports[dbport['switch_name']].get(dbbport, None) == None):
         bridgeports[dbport['switch_name']][dbbport] = {}
-    bridgeports[dbport['switch_name']][dbbport]['ip_address'] = dbport['ip_address']
+    bridgeports[dbport['switch_name']][dbbport]['ip_address'] = dbport.get('ip_address',"")
+    bridgeports[dbport['switch_name']][dbbport]['ip_node_1'] = dbport.get('ha_ipa', "")
+    bridgeports[dbport['switch_name']][dbbport]['ip_node_2'] = dbport.get('ha_ipb', "")
     bridgeports[dbport['switch_name']][dbbport]['mask_length'] = dbport['mask_length']
     bridgeports[dbport['switch_name']][dbbport]['vlan_id'] = dbport['vlan_id']
     if (bridgeports[dbport['switch_name']][dbbport].get('local_status', None) == None):
@@ -131,18 +162,35 @@ for bname in bridgeports:
         # Skip IP configuration for interfaces marked with skip_ip set
         if bridgeports[bname][bport].get('skip_ip', 0):
             continue
+        # Work out which IP to use. Single router = ip_address, multi = ip_node_a
+        ip_touse = bridgeports[bname][bport]['ip_address']
+        if getSetting('ha_enable') == "1":
+            if (bridgeports[bname][bport].get('ip_node_1', "") != None):
+              ip_touse = '.'.join(ip_touse.split('.')[:-1])+"."+bridgeports[bname][bport].get('ip_node_1', "")
+            else:
+              logger.info("pvsw_agent: Interface %s has no HA IP assigned despite HA being enabled. Using Cluster IP %s instead, this should be fixed." % (bport,ip_touse))
+
         # Check if interface has an IP address associated with it
         if bridgeports[bname][bport].get('ip_address', None):
             # Check if the interface itself has an IP address assigned.
             if netifaces.ifaddresses(bport).get(netifaces.AF_INET, None):
-              if bridgeports[bname][bport]['ip_address'] != netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr']:
-                print("Would replace "+bridgeports[bname][bport]['ip_address']);
+              if ip_touse != netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr']:
+                  logger.info("pvsw_agent: Changing IP address %s to %s for interface %s" % (netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr'], ip_touse, bport));
             else:
                 # Interface does not have an IP Address assigned to it.
                 # We assign our configured IP address to it.
-                print(bridgeports[bname][bport]['ip_address'] + "aaa");
                 logger.info("pvsw_agent: Adding IP address %s to unconfigured interface %s." % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport));
                 runCmd("/sbin/ip addr replace %s dev %s" % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport))
+
+# For HA clusters, we need to check the status of VIPs
+if getSetting('ha_enable') == "1":
+  for bname in bridgeports:
+    for bport in bridgeports[bname]:
+      # Skip VIP configuration for interfaces marked with skip_ip set
+      if bridgeports[bname][bport].get('skip_ip', 0):
+        continue
+      # Check if VLAN has a VIP address associated with it
+      # pcs resource config vmbr2vl1vip
 
 # Activate all interfaces that we agree upon (db_status = 3)
 for bname in bridgeports:
@@ -151,7 +199,7 @@ for bname in bridgeports:
       runCmd("/sbin/ip link set %s up" % bport)
 
 # Now, reverse the search and find interfaces configured which aren't in the
-# DB.
+# DB, and remove them from the bridge they are configured on.
 for bname in bridgeports:
   for bport in bridgeports[bname]:
     if bridgeports[bname][bport].get('db_status',0) == 0:

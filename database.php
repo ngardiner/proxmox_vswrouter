@@ -126,6 +126,22 @@ function get_setting($setting) {
   }
 }
 
+function get_settings() {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT * FROM settings");
+  if ($sth) {
+    $sth->execute();
+  } else {
+    return;
+  }
+  $res = $sth->fetchAll();
+  if ($res) {
+    return $res;
+  } else {
+    return;
+  }
+}
+
 function get_switches() {
   $dbh = new PDO("sqlite:database.db3");
   $sth = $dbh->prepare("SELECT * FROM switches ORDER BY name ASC");
