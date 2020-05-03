@@ -94,11 +94,30 @@ function get_rt_table_name($rt_id) {
     return "<i>Reserved</i>";
   }
   $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT rt_name FROM route_tables WHERE rt_id = :rt_id");
+  if ($sth) {
+    $sth->execute(array(':rt_id' => $rt_id));
+    return $sth->fetch()[0];
+  } else {
+    return "";
+  }
+
+}
+
+function get_rt_routes($rt_id) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT * FROM routes WHERE rt_id = :rt_id ORDER BY dst_ip, dst_mask ASC");
+  if ($sth) {
+    $sth->execute(array(':rt_id' => $rt_id));
+    return $sth->fetchAll();
+  } else {
+    return 0;
+  }
 }
 
 function get_rt_tables() {
   $dbh = new PDO("sqlite:database.db3");
-  $sth = $dbh->prepare("SELECT * FROM route_tables");
+  $sth = $dbh->prepare("SELECT * FROM route_tables ORDER BY rt_id ASC");
   if ($sth) {
     $sth->execute();
     return $sth->fetchAll();

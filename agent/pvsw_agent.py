@@ -21,7 +21,7 @@ import subprocess
 from urllib import request, parse
 
 def debug_print(msg):
-    print(msg)
+    logger.info("pvsw_agent: %s" % msg)
 
 def getDB(query):
     query = query.encode("utf-8")
@@ -49,8 +49,20 @@ def getSetting(setting):
             value = seti['value']
     return value
 
+def setQinQ():
+    setting = runCmdString("/usr/bin/ovs-vsctl get Open_vSwitch . other_config:vlan-limit")
+    debug_print("QinQ Command Output: %s" % setting)
+    if (setting == '"1"'):
+        # Turn on Q-in-Q support
+        runCmd("/usr/bin/ovs-vsctl set Open_vSwitch . other_config:vlan-limit=2")
+        runCmd("/usr/bin/ovs-appctl revalidator/purge")
+
 def runCmd(cmd):
     subprocess.call(split(cmd), stdout=open(os.devnull, "w"), stderr=subprocess.STDOUT)
+
+def runCmdString(cmd):
+    s = subprocess.Popen(split(cmd), stdout=subprocess.PIPE).stdout
+    return s.read().decode("utf-8")
 
 # Main execution loop
 
@@ -59,10 +71,13 @@ logger = logging.getLogger('MyLogger')
 logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler(address = '/dev/log')
 logger.addHandler(handler)
-logger.info("pvsw_agent: Execution begin");
+debug_print("pvsw_agent: Execution begin");
 
 # Ensure IP Forwarding is enabled for all interfaces
 runCmd("/sbin/sysctl net.ipv4.ip_forward=1")
+
+# Ensure Q-in-Q is enabled
+setQinQ()
 
 # These data structures hold both the OVS defined and DB defined data
 # based on the values assigned
@@ -163,7 +178,7 @@ for bname in bridgeports:
         if bridgeports[bname][bport].get('skip_ip', 0):
             continue
         # Work out which IP to use. Single router = ip_address, multi = ip_node_a
-        ip_touse = bridgeports[bname][bport]['ip_address']
+        ip_touse = bridgeports[bname][bport].get('ip_address', "")
         if getSetting('ha_enable') == "1":
             if (bridgeports[bname][bport].get('ip_node_1', "") != None):
               ip_touse = '.'.join(ip_touse.split('.')[:-1])+"."+bridgeports[bname][bport].get('ip_node_1', "")
