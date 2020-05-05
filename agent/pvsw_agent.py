@@ -20,7 +20,7 @@ from shlex import split
 import subprocess
 from urllib import request, parse
 
-def debug_print(msg):
+def debug_print(lvl, msg):
     logger.info("pvsw_agent: %s" % msg)
 
 def getDB(query):
@@ -40,9 +40,8 @@ def getOVSPorts(bridge):
     s = subprocess.Popen(["/usr/bin/ovs-vsctl list-ports " + bridge], shell=True, stdout=subprocess.PIPE).stdout
     return s.read().decode("utf-8").splitlines()
 
-def getSetting(setting):
+def getSetting(setting,settings):
     # Iterate through list of settings, find the value
-    global settings
     value = ""
     for seti in settings:
         if seti['setting'] == setting:
@@ -51,7 +50,7 @@ def getSetting(setting):
 
 def setQinQ():
     setting = runCmdString("/usr/bin/ovs-vsctl get Open_vSwitch . other_config:vlan-limit")
-    debug_print("QinQ Command Output: %s" % setting)
+    debug_print(9, "QinQ Command Output: %s" % setting)
     if (setting != '"2"'):
         # Turn on Q-in-Q support
         runCmd("/usr/bin/ovs-vsctl set Open_vSwitch . other_config:vlan-limit=2")
@@ -71,7 +70,7 @@ logger = logging.getLogger('MyLogger')
 logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler(address = '/dev/log')
 logger.addHandler(handler)
-debug_print("pvsw_agent: Execution begin");
+debug_print(9, "pvsw_agent: Execution begin");
 
 # Ensure IP Forwarding is enabled for all interfaces
 runCmd("/sbin/sysctl net.ipv4.ip_forward=1")
@@ -79,20 +78,18 @@ runCmd("/sbin/sysctl net.ipv4.ip_forward=1")
 # Ensure Q-in-Q is enabled
 setQinQ()
 
-# These data structures hold both the OVS defined and DB defined data
-# based on the values assigned
-bridges = {}
-bridgeports = {}
-
-# Fetch settings from server
-settings = getDB("json=getSettings")
-if (not settings):
-  # Issue fetching settings. Set it to an empty list.
-  settings = []
-
 def doMainLoop():
 
-  global bridges, bridgeports, settings
+  # These data structures hold both the OVS defined and DB defined data
+  # based on the values assigned
+  bridges = {}
+  bridgeports = {}
+
+  # Fetch settings from server
+  settings = getDB("json=getSettings")
+  if (not settings):
+      # Issue fetching settings. Set it to an empty list.
+      settings = []
 
   # Gather a list of vswitches on the device
   ovsbridges = getOVSBridges()
@@ -175,7 +172,7 @@ def doMainLoop():
         # IP address later.
         if (dbport['rt_table'] == "99999"):
           bridgeports[dbport['switch_name']][dbbport]['skip_ip'] = 1
-          bridgeports[dbport['switch_name']][dbbport]['db_status'] = 3
+        bridgeports[dbport['switch_name']][dbbport]['db_status'] = 3
       else:
         # Otherwise, set it to 2 (unless it's a reserved port, which is 3)
         if (dbport['rt_table'] == "99999"):
@@ -183,7 +180,7 @@ def doMainLoop():
           bridgeports[dbport['switch_name']][dbbport]['skip_ip'] = 1
         else:
           bridgeports[dbport['switch_name']][dbbport]['db_status'] = 2
-          logger.info("pvsw_agent: Found new VLAN interface to configure: %svl%s" % (dbport['switch_name'], dbport['vlan_id']))
+          debug_print(1, "Found new VLAN interface to configure: %svl%s" % (dbport['switch_name'], dbport['vlan_id']))
 
   # Create any missing internal ports
   for bname in bridgeports:
@@ -201,26 +198,26 @@ def doMainLoop():
             continue
         # Work out which IP to use. Single router = ip_address, multi = ip_node_a
         ip_touse = bridgeports[bname][bport].get('ip_address', "")
-        if getSetting('ha_enable') == "1":
+        if getSetting('ha_enable', settings) == "1":
             if (bridgeports[bname][bport].get('ip_node_1', "") != None):
               ip_touse = '.'.join(ip_touse.split('.')[:-1])+"."+bridgeports[bname][bport].get('ip_node_1', "")
             else:
-              logger.info("pvsw_agent: Interface %s has no HA IP assigned despite HA being enabled. Using Cluster IP %s instead, this should be fixed." % (bport,ip_touse))
+              debug_print(1, "Interface %s has no HA IP assigned despite HA being enabled. Using Cluster IP %s instead, this should be fixed." % (bport,ip_touse))
 
         # Check if interface has an IP address associated with it
         if bridgeports[bname][bport].get('ip_address', None):
             # Check if the interface itself has an IP address assigned.
             if netifaces.ifaddresses(bport).get(netifaces.AF_INET, None):
               if ip_touse != netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr']:
-                  logger.info("pvsw_agent: Changing IP address %s to %s for interface %s" % (netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr'], ip_touse, bport));
+                  debug_print(1, "Changing IP address %s to %s for interface %s" % (netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr'], ip_touse, bport));
             else:
                 # Interface does not have an IP Address assigned to it.
                 # We assign our configured IP address to it.
-                logger.info("pvsw_agent: Adding IP address %s to unconfigured interface %s." % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport));
+                debug_print(1, "Adding IP address %s to unconfigured interface %s." % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport));
                 runCmd("/sbin/ip addr replace %s dev %s" % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport))
 
   # For HA clusters, we need to check the status of VIPs
-  if getSetting('ha_enable') == "1":
+  if getSetting('ha_enable', settings) == "1":
     for bname in bridgeports:
       for bport in bridgeports[bname]:
         # Skip VIP configuration for interfaces marked with skip_ip set
@@ -240,7 +237,7 @@ def doMainLoop():
   for bname in bridgeports:
     for bport in bridgeports[bname]:
       if bridgeports[bname][bport].get('db_status',0) == 0:
-        logger.info('Port %s does not exist in the Database. Removing.' % bport)
+        debug_print(1, 'Port %s does not exist in the Database. Removing.' % bport)
         runCmd("/usr/bin/ovs-vsctl del-port %s %s" % (bname,bport))
         bridgeports[bname][bport]['db_status'] = 1
 
