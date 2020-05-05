@@ -87,13 +87,15 @@ bridgeports = {}
 # Fetch settings from server
 settings = getDB("json=getSettings")
 if (not settings):
-    # Issue fetching settings. Set it to an empty list.
-    settings = []
+  # Issue fetching settings. Set it to an empty list.
+  settings = []
 
-# Gather a list of vswitches on the device
-ovsbridges = getOVSBridges()
+def doMainLoop():
 
-for ovsbridge in ovsbridges:
+  # Gather a list of vswitches on the device
+  ovsbridges = getOVSBridges()
+
+  for ovsbridge in ovsbridges:
     bridges[ovsbridge] = {}
     bridgeports[ovsbridge] = {}
     bridges[ovsbridge]['local_status'] = 1;
@@ -105,11 +107,18 @@ for ovsbridge in ovsbridges:
         bridgeports[ovsbridge][ovsport] = {}
         bridgeports[ovsbridge][ovsport]['local_status'] = 1;
 
-# Connect to the webserver and request a list of vswitches
-dbswitches = getDB("json=getSwitches")
+  # Connect to the webserver and request a list of vswitches
+  dbswitches = getDB("json=getSwitches")
 
-# Iterate through the list of vswitches
-for switch in dbswitches:
+  # Iterate through the list of vswitches
+  for switch in dbswitches:
+
+    # Check if the vswitch is configured locally
+    if bridges.get(switch['name'], None) == None:
+      bridges[switch['name']] = {}
+      bridges[switch['name']]['db_status'] = 3
+    else:
+      bridges[switch['name']]['db_status'] = 2
 
     # Exclude any bridge uplink ports from being removed
     if (switch['uplink_type'] == "1"):
@@ -128,51 +137,62 @@ for switch in dbswitches:
       bridgeports[switch['uplink_interface']][uplinkport]['db_status'] = 3
       bridgeports[switch['uplink_interface']][uplinkport]['skip_ip'] = 1
 
-# Connect to the webserver and request a list of vlan interfaces
-for switch in dbswitches:
-  # Fetch VLAN interfaces from server
-  dbports = getDB("json=getVLANs&switch=%s" % switch['name'])
+  # Create any missing bridges
+  for bridge in bridges:
+    if bridges[bridge].get('db_status',0) == 2:
+      logger.info('Bridge %s does not exist. Adding.' % bridge)
 
-  # Iterate through the vlan interfaces
-  for dbport in dbports:
-    dbbport = "%svl%s" % (dbport['switch_name'], dbport['vlan_id'])
-    logger.info(dbbport)
-    if (bridgeports[dbport['switch_name']].get(dbbport, None) == None):
-        bridgeports[dbport['switch_name']][dbbport] = {}
-    bridgeports[dbport['switch_name']][dbbport]['ip_address'] = dbport.get('ip_address',"")
-    bridgeports[dbport['switch_name']][dbbport]['ip_node_1'] = dbport.get('ha_ipa', "")
-    bridgeports[dbport['switch_name']][dbbport]['ip_node_2'] = dbport.get('ha_ipb', "")
-    bridgeports[dbport['switch_name']][dbbport]['mask_length'] = dbport['mask_length']
-    bridgeports[dbport['switch_name']][dbbport]['vlan_id'] = dbport['vlan_id']
-    if (bridgeports[dbport['switch_name']][dbbport].get('local_status', None) == None):
-      # Port doesn't exist locally. Seed a value
-      bridgeports[dbport['switch_name']][dbbport]['local_status'] = 0
-    # If the port already exists locally, set db_status to 3
-    if bridgeports[dbport['switch_name']][dbbport]['local_status'] == 1:
-      # Set skip_ip if it's a reserved VLAN, otherwise we'd try changing its
-      # IP address later.
-      if (dbport['rt_table'] == "99999"):
+      # We add the bridge first
+      runCmd("/usr/bin/ovs-vsctl add-br %s" % bridge)
+
+      # Then we add the port (either interface or patch port) connecting the bridge to its uplink.
+      bridges[bridge]['db_status'] = 3
+
+  # Connect to the webserver and request a list of vlan interfaces
+  for switch in dbswitches:
+    # Fetch VLAN interfaces from server
+    dbports = getDB("json=getVLANs&switch=%s" % switch['name'])
+
+    # Iterate through the vlan interfaces
+    for dbport in dbports:
+      dbbport = "%svl%s" % (dbport['switch_name'], dbport['vlan_id'])
+      logger.info(dbbport)
+      if (bridgeports[dbport['switch_name']].get(dbbport, None) == None):
+          bridgeports[dbport['switch_name']][dbbport] = {}
+      bridgeports[dbport['switch_name']][dbbport]['ip_address'] = dbport.get('ip_address',"")
+      bridgeports[dbport['switch_name']][dbbport]['ip_node_1'] = dbport.get('ha_ipa', "")
+      bridgeports[dbport['switch_name']][dbbport]['ip_node_2'] = dbport.get('ha_ipb', "")
+      bridgeports[dbport['switch_name']][dbbport]['mask_length'] = dbport['mask_length']
+      bridgeports[dbport['switch_name']][dbbport]['vlan_id'] = dbport['vlan_id']
+      if (bridgeports[dbport['switch_name']][dbbport].get('local_status', None) == None):
+        # Port doesn't exist locally. Seed a value
+        bridgeports[dbport['switch_name']][dbbport]['local_status'] = 0
+      # If the port already exists locally, set db_status to 3
+      if bridgeports[dbport['switch_name']][dbbport]['local_status'] == 1:
+        # Set skip_ip if it's a reserved VLAN, otherwise we'd try changing its
+        # IP address later.
+        if (dbport['rt_table'] == "99999"):
           bridgeports[dbport['switch_name']][dbbport]['skip_ip'] = 1
-      bridgeports[dbport['switch_name']][dbbport]['db_status'] = 3
-    else:
-      # Otherwise, set it to 2 (unless it's a reserved port, which is 3)
-      if (dbport['rt_table'] == "99999"):
-        bridgeports[dbport['switch_name']][dbbport]['db_status'] = 3
-        bridgeports[dbport['switch_name']][dbbport]['skip_ip'] = 1
+          bridgeports[dbport['switch_name']][dbbport]['db_status'] = 3
       else:
-        bridgeports[dbport['switch_name']][dbbport]['db_status'] = 2
-        logger.info("pvsw_agent: Found new VLAN interface to configure: %svl%s" % (dbport['switch_name'], dbport['vlan_id']))
+        # Otherwise, set it to 2 (unless it's a reserved port, which is 3)
+        if (dbport['rt_table'] == "99999"):
+          bridgeports[dbport['switch_name']][dbbport]['db_status'] = 3
+          bridgeports[dbport['switch_name']][dbbport]['skip_ip'] = 1
+        else:
+          bridgeports[dbport['switch_name']][dbbport]['db_status'] = 2
+          logger.info("pvsw_agent: Found new VLAN interface to configure: %svl%s" % (dbport['switch_name'], dbport['vlan_id']))
 
-# Create any missing internal ports
-for bname in bridgeports:
+  # Create any missing internal ports
+  for bname in bridgeports:
     for bport in bridgeports[bname]:
         if bridgeports[bname][bport].get('db_status',0) == 2:
           logger.info('Port %s does not exist as an OVS port. Adding.' % bport)
           runCmd("/usr/bin/ovs-vsctl add-port %s %s tag=%s -- set interface %s type=internal" % (bname,bport,bridgeports[bname][bport].get('vlan_id', 9999),bport))
           bridgeports[bname][bport]['db_status'] = 3
 
-# Make sure IP addresses match up
-for bname in bridgeports:
+  # Make sure IP addresses match up
+  for bname in bridgeports:
     for bport in bridgeports[bname]:
         # Skip IP configuration for interfaces marked with skip_ip set
         if bridgeports[bname][bport].get('skip_ip', 0):
@@ -197,27 +217,30 @@ for bname in bridgeports:
                 logger.info("pvsw_agent: Adding IP address %s to unconfigured interface %s." % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport));
                 runCmd("/sbin/ip addr replace %s dev %s" % (bridgeports[bname][bport]['ip_address'] + "/" + bridgeports[bname][bport]['mask_length'], bport))
 
-# For HA clusters, we need to check the status of VIPs
-if getSetting('ha_enable') == "1":
+  # For HA clusters, we need to check the status of VIPs
+  if getSetting('ha_enable') == "1":
+    for bname in bridgeports:
+      for bport in bridgeports[bname]:
+        # Skip VIP configuration for interfaces marked with skip_ip set
+        if bridgeports[bname][bport].get('skip_ip', 0):
+          continue
+        # Check if VLAN has a VIP address associated with it
+        # pcs resource config vmbr2vl1vip
+
+  # Activate all interfaces that we agree upon (db_status = 3)
   for bname in bridgeports:
     for bport in bridgeports[bname]:
-      # Skip VIP configuration for interfaces marked with skip_ip set
-      if bridgeports[bname][bport].get('skip_ip', 0):
-        continue
-      # Check if VLAN has a VIP address associated with it
-      # pcs resource config vmbr2vl1vip
+      if bridgeports[bname][bport].get('db_status',0) == 3:
+        runCmd("/sbin/ip link set %s up" % bport)
 
-# Activate all interfaces that we agree upon (db_status = 3)
-for bname in bridgeports:
-  for bport in bridgeports[bname]:
-    if bridgeports[bname][bport].get('db_status',0) == 3:
-      runCmd("/sbin/ip link set %s up" % bport)
+  # Now, reverse the search and find interfaces configured which aren't in the
+  # DB, and remove them from the bridge they are configured on.
+  for bname in bridgeports:
+    for bport in bridgeports[bname]:
+      if bridgeports[bname][bport].get('db_status',0) == 0:
+        logger.info('Port %s does not exist in the Database. Removing.' % bport)
+        runCmd("/usr/bin/ovs-vsctl del-port %s %s" % (bname,bport))
+        bridgeports[bname][bport]['db_status'] = 1
 
-# Now, reverse the search and find interfaces configured which aren't in the
-# DB, and remove them from the bridge they are configured on.
-for bname in bridgeports:
-  for bport in bridgeports[bname]:
-    if bridgeports[bname][bport].get('db_status',0) == 0:
-      logger.info('Port %s does not exist in the Database. Removing.' % bport)
-      runCmd("/usr/bin/ovs-vsctl del-port %s %s" % (bname,bport))
-      bridgeports[bname][bport]['db_status'] = 1
+# Tun main loop
+doMainLoop()

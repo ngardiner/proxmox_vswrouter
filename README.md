@@ -1,8 +1,15 @@
 # Proxmox vSWRouter
-A Virtual Router for Proxmox suitable for creating lab networks easily via a web interface.
+
+## What is it?
+
+A web-based Virtual Router project primarily for Proxmox environments, suitable for creating lab networks easily via a web interface.
+
+This project is **not** associated with the official Proxmox project, however it is very much intended to be complimentary in that it provides a soft router platform which is intended to be easily run as a lightweight Proxmox-friendly virtual router layer for Virtualized environments.
+
+If this project goal interests you and you have further questions, feel free to read through the <a href="docs/faq.md">FAQ</a> which may cover your question in more detail.
 
 Project Aim:
-   * Provide a _lightweight_ router instance for Proxmox installs - no need for firmware or interfacing with a proprietary router solution.
+   * Provide a _lightweight_ router instance for Proxmox installs - no need for firmware or interfacing with a proprietary router solution. It can be built on <a href="docs/install-container.md">container</a>, <a href="docs/install-kvm.md">VM</a> or hardware devices.
    * Model functionality on the VMWare Workstation VMNet functionality - allow easy spinning up of networks, primarily for lab testing, but with richer functionality and a web interface.
 
 ## Introduction
@@ -14,30 +21,20 @@ To do this, we offer a simple web interface with the following features:
 2. Setting a routing table per interface (if desired) and allowing or denying Internet access per interface
 
 ### Design
-Implementing this project consists of a pair of OpenVSwitch switches, one (or more) on each Proxmox node in the cluster, and one (or more) within a VM. The Proxmox VMs trunk VLANs from their ovs switch to the VM, which acts as a router. It will terminate the 
+Implementing this project consists of a pair of OpenVSwitch switches, one (or more) on each Proxmox node in the cluster, and one (or more) within a VM. The Proxmox VMs trunk VLANs from their ovs switch to the VM, which acts as a router.
 
-### Pros and Cons
-This same mechanism could easily be performed just by spinning up a VLAN each time, however:
-
-   * This generally requires configuring VLAN trunking across a network, and mixes virtual VLANs with 
-   * Note that single VLAN mode is intended to be supported by this project as well, but it will only work in flat, non-VLAN aware networks.
-   
-Cons:
-
-   * Q-in-Q VLAN trunking adds overhead (4 bytes in the header)
-   
 ## Setup
 
 The following steps will get you up and running:
 
-1. Deploy an Ubuntu 20.04 VM. The following configuration should be used:
+1. Deploy an Ubuntu 20.04 Container or VM. The following configuration should be used:
 
    * VM CPU Cores: 1
    * RAM: Minimum 512MB
    * Network Interfaces: 2 interfaces
       * Interface 1: Management. Should be in VLAN 1 
 
-You should deploy 2 VMs if you are running in HA mode. Keep in mind, HA mode needs to be running across two different Proxmox cluster nodes
+You should deploy 2 Containers or VMs if you are running in HA mode. Keep in mind, HA mode needs to be running across two different Proxmox cluster nodes
 
 2. Install the following packages:
 ```apt-get install apache2 libapache2-mod-php7.4 php7.4-mbstring php7.4-sqlite```
@@ -71,11 +68,11 @@ cp docs/cron.conf /etc/cron.d/pvsw_agent
 
 ## Current Status
 
-   * New bridge interfaces - implemented
-   * Delete bridge interfaces - implemented
+   * New VLAN interfaces - implemented (non-HA only)
+   * Delete bridge interfaces - implemented (non-HA only)
    * New bridge - not implemented
    * Delete bridge - not implemented
    * Define routing table - not implemented
+   * Define routing table routes - not implemented
    * Enforce routing table - not implemented
-   * Update incorrect IP address - not implemented
-   * Add HA IP address - not implemented
+   * Update incorrect IP address - implemented (non-HA only)
