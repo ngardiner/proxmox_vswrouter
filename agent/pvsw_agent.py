@@ -52,7 +52,7 @@ def getSetting(setting):
 def setQinQ():
     setting = runCmdString("/usr/bin/ovs-vsctl get Open_vSwitch . other_config:vlan-limit")
     debug_print("QinQ Command Output: %s" % setting)
-    if (setting == '"1"'):
+    if (setting != '"2"'):
         # Turn on Q-in-Q support
         runCmd("/usr/bin/ovs-vsctl set Open_vSwitch . other_config:vlan-limit=2")
         runCmd("/usr/bin/ovs-appctl revalidator/purge")
