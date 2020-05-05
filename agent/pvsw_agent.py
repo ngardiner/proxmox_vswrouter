@@ -92,6 +92,8 @@ if (not settings):
 
 def doMainLoop():
 
+  global bridges, bridgeports, settings
+
   # Gather a list of vswitches on the device
   ovsbridges = getOVSBridges()
 
