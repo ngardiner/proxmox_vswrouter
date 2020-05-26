@@ -23,6 +23,19 @@ from urllib import request, parse
 def debug_print(lvl, msg):
     logger.info("pvsw_agent: %s" % msg)
 
+def checkInterfaceExists(interface):
+    # Check that the specified network interface exists
+    if (interface in netifaces.interfaces()):
+      return True
+    else:
+      return False
+
+def createOVSPatchPort(bridge, port, vlan, peer):
+    tag = ""
+    if (vlan > 0): 
+      tag="tag=%d" % vlan
+    runCmd("/usr/bin/ovs-vsctl add-port %s %s %s -- set interface %s type=patch -- set interface %s options:peer=%s" % (bridge, port, tag, port, port, peer))
+
 def getDB(query):
     query = query.encode("utf-8")
     req = request.Request("http://127.0.0.1/post.php", data=query)
@@ -47,6 +60,9 @@ def getSetting(setting,settings):
         if seti['setting'] == setting:
             value = seti['value']
     return value
+
+def makeOVSPortTrunk(port):
+    runCmd("/usr/bin/ovs-vsctl set port %s vlan_mode=dot1q-tunnel other-config:qinq-ethtype=802.1q" % (port))
 
 def setQinQ():
     setting = runCmdString("/usr/bin/ovs-vsctl get Open_vSwitch . other_config:vlan-limit")
@@ -115,22 +131,38 @@ def doMainLoop():
     # Check if the vswitch is configured locally
     if bridges.get(switch['name'], None) == None:
       bridges[switch['name']] = {}
-      bridges[switch['name']]['db_status'] = 3
-    else:
       bridges[switch['name']]['db_status'] = 2
+    else:
+      bridges[switch['name']]['db_status'] = 3
 
     # Exclude any bridge uplink ports from being removed
     if (switch['uplink_type'] == "1"):
       # This is a physical link
+      bridges[switch['name']]['uplink_type'] = "1"
+      bridges[switch['name']]['uplink_interface'] = switch['uplink_interface']
       bridgeports[switch['name']][switch['uplink_interface']]['db_status'] = 3
       bridgeports[switch['name']][switch['uplink_interface']]['skip_ip'] = 1
 
     if (switch['uplink_type'] == "2"):
       # This is a patch port link
-      uplinkport = "%svl%s" % (switch['uplink_interface'], switch['uplink_vlan'])
-      downlinkport = "%strunk" % switch['name']
+      # Populate the interface names for downlink/uplink in the bridge struct
+      bridges[switch['name']]['uplink_type'] = "2"
+      bridges[switch['name']]['uplink_bridge'] = switch['uplink_interface']
+      bridges[switch['name']]['uplink_vlan'] = int(switch['uplink_vlan'])
+      bridges[switch['name']]['uplink_interface'] = "%svl%s" % (switch['uplink_interface'], switch['uplink_vlan'])
+      bridges[switch['name']]['downlink_interface'] = "%strunk" % switch['name']
+      uplinkport = bridges[switch['name']]['uplink_interface']
+      downlinkport = bridges[switch['name']]['downlink_interface']
  
       # Set these two ports as db_status=3 (in sync) and skip_ip
+      if (not bridgeports.get(switch['name'], None)):
+        bridgeports[switch['name']] = {}
+      if (not bridgeports[switch['name']].get(downlinkport, None)):
+        bridgeports[switch['name']][downlinkport] = {}
+      if (not bridgeports.get(switch['uplink_interface'], None)):
+        bridgeports[switch['uplink_interface']] = {}
+      if (not bridgeports[switch['uplink_interface']].get(uplinkport, None)):
+        bridgeports[switch['uplink_interface']][uplinkport] = {}
       bridgeports[switch['name']][downlinkport]['db_status'] = 3
       bridgeports[switch['name']][downlinkport]['skip_ip'] = 1
       bridgeports[switch['uplink_interface']][uplinkport]['db_status'] = 3
@@ -145,6 +177,18 @@ def doMainLoop():
       runCmd("/usr/bin/ovs-vsctl add-br %s" % bridge)
 
       # Then we add the port (either interface or patch port) connecting the bridge to its uplink.
+      if (bridges[bridge]['uplink_type'] == "1"):
+        # Uplink interfaces get added to the bridge
+        runCmd("/usr/bin/ovs-vsctl add-port %s %s" % (bridge, switch['uplink_interface']))
+        makeOVSPortTrunk(switch['uplink_interface'])
+      if (bridges[bridge]['uplink_type'] == "2"):
+        # Patch ports get created and connected together
+        debug_print(5, "Adding Downlink Interface %s" % bridges[bridge]['downlink_interface'])
+        createOVSPatchPort(bridge, bridges[bridge]['downlink_interface'], 0, bridges[bridge]['uplink_interface'])
+        debug_print(5, "Adding Uplink Interface %s" % bridges[bridge]['uplink_interface'])
+        createOVSPatchPort(bridges[bridge]['uplink_bridge'], bridges[bridge]['uplink_interface'], bridges[bridge]['uplink_vlan'], bridges[bridge]['downlink_interface'])
+        makeOVSPortTrunk(bridges[bridge]['uplink_interface'])
+      # Once the bridge has been created, mark it as created in the bridge dict
       bridges[bridge]['db_status'] = 3
 
   # Connect to the webserver and request a list of vlan interfaces
@@ -207,7 +251,8 @@ def doMainLoop():
         # Check if interface has an IP address associated with it
         if bridgeports[bname][bport].get('ip_address', None):
             # Check if the interface itself has an IP address assigned.
-            if netifaces.ifaddresses(bport).get(netifaces.AF_INET, None):
+            if (checkInterfaceExists(bport) and
+                netifaces.ifaddresses(bport).get(netifaces.AF_INET, None)):
               if ip_touse != netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr']:
                   debug_print(1, "Changing IP address %s to %s for interface %s" % (netifaces.ifaddresses(bport)[netifaces.AF_INET][0]['addr'], ip_touse, bport));
             else:
