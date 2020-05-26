@@ -1,15 +1,15 @@
-# Proxmox vSWRouter
+# Proxmox vSW-Router
 
 ## What is it?
 
-A web-based Virtual Router project primarily for Proxmox environments, suitable for creating lab networks easily via a web interface.
+A web-based container-ready Virtual Router project primarily (but not exclusively!) for Proxmox environments, suitable for creating lab networks easily via a web interface.
 
-This project is **not** associated with the official Proxmox project, however it is very much intended to be complimentary in that it provides a soft router platform which is intended to be easily run as a lightweight Proxmox-friendly virtual router layer for Virtualized environments.
+This project is **not** associated with the official Proxmox project, however it is very much intended to be complimentary in that it provides a soft router platform which is intended to be easily run as a lightweight container or VM-based Proxmox-friendly virtual router layer for Virtualized environments.
 
 If this project goal interests you and you have further questions, feel free to read through the <a href="docs/faq.md">FAQ</a> which may cover your question in more detail.
 
 Project Aim:
-   * Provide a _lightweight_ router instance for Proxmox installs - no need for firmware or interfacing with a proprietary router solution. It can be built on <a href="docs/install-container.md">container</a>, <a href="docs/install-kvm.md">VM</a> or hardware devices.
+   * Provide a _lightweight_ container-friendly router instance for Proxmox installs - no need for firmware or interfacing with a proprietary router solution. It can be built on <a href="docs/install-container.md">container</a>, <a href="docs/install-kvm.md">VM</a> or hardware devices.
    * Model functionality on the VMWare Workstation VMNet functionality - allow easy spinning up of networks, primarily for lab testing, but with richer functionality and a web interface.
 
 ## Introduction
@@ -38,6 +38,9 @@ You should deploy 2 Containers or VMs if you are running in HA mode. Keep in min
 
 2. Install the following packages:
 ```apt-get install apache2 libapache2-mod-php7.4 php7.4-mbstring php7.4-sqlite```
+
+   * If you would like VPN functionality, add the following packages:
+      * ```apt-get install openssl openvpn```
 
 3. Clone this git repository under /var/www/html
 ```
@@ -68,11 +71,17 @@ cp docs/cron.conf /etc/cron.d/pvsw_agent
 
 ## Current Status
 
-   * New VLAN interfaces - implemented (non-HA only)
-   * Delete bridge interfaces - implemented (non-HA only)
-   * New bridge - not implemented
-   * Delete bridge - not implemented
-   * Define routing table - not implemented
-   * Define routing table routes - not implemented
-   * Enforce routing table - not implemented
-   * Update incorrect IP address - implemented (non-HA only)
+   * Bridges
+      * New bridge - implemented
+      * Delete bridge - not implemented
+   * Interfaces
+      * Create VLAN IP interfaces - implemented (non-HA only)
+      * Delete VLAN IP interfaces - implemented (non-HA only)
+      * Update incorrect IP address - implemented (non-HA only)
+   * Routing Tables
+      * Define routing table - implemented
+      * Define routing table routes - not implemented
+      * Enforce routing table - not implemented
+   * VPN
+      * Define VPN configuration - in progress
+      * Restart on VPN reconfiguration - not implemented

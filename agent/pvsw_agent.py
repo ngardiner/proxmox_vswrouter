@@ -23,6 +23,9 @@ from urllib import request, parse
 def debug_print(lvl, msg):
     logger.info("pvsw_agent: %s" % msg)
 
+def addOVSPortToBridge(bridge, port):
+    runCmd("/usr/bin/ovs-vsctl add-port %s %s" % (bridge, port))
+
 def checkInterfaceExists(interface):
     # Check that the specified network interface exists
     if (interface in netifaces.interfaces()):
@@ -63,6 +66,12 @@ def getSetting(setting,settings):
 
 def makeOVSPortTrunk(port):
     runCmd("/usr/bin/ovs-vsctl set port %s vlan_mode=dot1q-tunnel other-config:qinq-ethtype=802.1q" % (port))
+
+def nicify_rt_name(rt_name):
+    # Make the Route Table name nicer
+    rt_name = rt_name.lower()
+    rt_name = rt_name.replace(" ", "_")
+    return rt_name
 
 def setQinQ():
     setting = runCmdString("/usr/bin/ovs-vsctl get Open_vSwitch . other_config:vlan-limit")
@@ -179,7 +188,8 @@ def doMainLoop():
       # Then we add the port (either interface or patch port) connecting the bridge to its uplink.
       if (bridges[bridge]['uplink_type'] == "1"):
         # Uplink interfaces get added to the bridge
-        runCmd("/usr/bin/ovs-vsctl add-port %s %s" % (bridge, switch['uplink_interface']))
+        debug_print(5, "Adding Uplink Interface %s to bridge %s" % (bridges[bridge]['uplink_interface'], bridge))
+        addOVSPortToBridge(bridge, switch['uplink_interface'])
         makeOVSPortTrunk(switch['uplink_interface'])
       if (bridges[bridge]['uplink_type'] == "2"):
         # Patch ports get created and connected together
@@ -286,5 +296,31 @@ def doMainLoop():
         runCmd("/usr/bin/ovs-vsctl del-port %s %s" % (bname,bport))
         bridgeports[bname][bport]['db_status'] = 1
 
-# Tun main loop
+  # Fetch a list of route tables from the server
+  rt_tables = getDB("json=getRouteTables")
+  rt_file_contents = """
+#
+# reserved values
+#
+255     local
+254     main
+253     default
+0       unspec
+#
+# local
+#
+#1      inr.ruhep
+"""
+
+  for rt_table in rt_tables:
+    # Create new rt_tables file entry for iproute2
+    if (rt_table["rt_id"] != "253"):
+      rt_file_contents += rt_table["rt_id"] + "\t" + nicify_rt_name(rt_table["rt_name"]) + "\n"
+
+  # Write route table to file
+  rt_file = open("/etc/iproute2/rt_tables", "w")
+  rt_file.write(rt_file_contents)
+  rt_file.close()
+
+# Run main loop
 doMainLoop()

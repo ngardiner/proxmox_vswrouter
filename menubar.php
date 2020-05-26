@@ -13,6 +13,9 @@
         <a class="nav-link" href="?page=routes">Route Tables</a>
       </li>
       <li class="nav-item active">
+        <a class="nav-link" href="?page=vpn">VPN</a>
+      </li>
+      <li class="nav-item active">
         <a class="nav-link" href="?page=settings">Settings</a>
       </li>
     </ul>

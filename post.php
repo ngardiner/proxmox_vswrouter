@@ -1,6 +1,11 @@
 <?php
   include_once("database.php");
 
+  if (isset($_POST['addRT'])) {
+    if (! add_route_table($_POST['rtID'], $_POST['rtName'], $_POST['rtDesc'])) {
+      header("Location: /?page=routes");
+    }
+  }
   if (isset($_POST['addSwitch'])) {
     add_switch($_POST['switchName'], $_POST['switchType'], $_POST['uplinkType'], $_POST['uplinkIface'], $_POST['uplinkSwitch'], $_POST['uplinkVlan']);
     header("Location: /?page=settings");
@@ -8,13 +13,24 @@
 
   if (isset($_POST['delVlan'])) {
     if (! del_vlan($_POST['switchId'], $_POST['vlanId'])) {
-      header("Location: /?page=switch");
+      $redirect = "/?page=switch&anchor=" . $_POST['switchId'];
+      header("Location: $redirect");
+    } else {
+      ?>
+      <h1>An error occurred</h1>
+      <?php
     }
   }
 
   if (isset($_POST['addVlan'])) {
     if (! add_vlan($_POST['switchName'], $_POST['vlanID'], $_POST['ipAddress'], $_POST['maskLength'], $_POST['rtTable'], $_POST['vlanDesc'])) {
-      header("Location: /?page=switch");
+      $redirect = "/?page=switch&anchor=" . $_POST['switchName'];
+      header("Location: $redirect");
+      print "Redirecting to $redirect...";
+    } else {
+      ?>
+      <h1>An error occurred</h1>
+      <?php
     }
   }
 
@@ -45,6 +61,10 @@
     } elseif ($_POST['json'] == "getSwitches") {
       $switches = get_switches();
       print json_encode($switches);
+      return;
+    } elseif ($_POST['json'] == "getRouteTables") {
+      $rt = get_rt_tables();
+      print json_encode($rt);
       return;
     }
   }

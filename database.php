@@ -58,6 +58,19 @@ function add_switch($name, $type, $uplink_type, $iface, $switch, $vlan) {
   return 0;
 }
 
+function add_route_table($rtId, $rtName, $rtDesc) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("INSERT INTO route_tables (rt_name, rt_id, rt_desc) VALUES (:rt_name, :rt_id, :rt_desc)");
+  if ($sth) {
+    $sth->execute(array('rt_name' => $rtName, 'rt_id' => $rtId, 'rt_desc' => $rtDesc));
+    return 0;
+  } else {
+    print_r($dbh->errorInfo());
+    return 1;
+  }
+
+}
+
 function add_vlan($switchName, $vlanID, $ipAddress, $maskLength, $rtTable, $vlanDesc) {
   $dbh = new PDO("sqlite:database.db3");
   $sth = $dbh->prepare("INSERT INTO switch_vlans (switch_name, vlan_id, ip_address, mask_length, rt_table, desc) VALUES (:switch_name, :vlan_id, :ip_address, :mask_length, :rt_table, :desc)");

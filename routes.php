@@ -20,9 +20,11 @@
   }
 ?>
 </table>
-<table>
-  <tr><th>Route Table Name</th><td><input name="rtName" /></td></tr>
-  <tr><th>Route Table ID (2-252)</th><td><input size=3 name="rtID" /></td></tr>
-  <tr><th>Route Table Description</th><td><input size=40 name="rtDesc" /></td></tr>
-  <tr><td><input type=submit value="Add Route Table" name="addRT" /></td></tr>
-</table>
+<form action="post.php" method=POST>
+  <table>
+    <tr><th>Route Table Name</th><td><input name="rtName" /></td></tr>
+    <tr><th>Route Table ID (2-252)</th><td><input size=3 name="rtID" /></td></tr>
+    <tr><th>Route Table Description</th><td><input size=40 name="rtDesc" /></td></tr>
+    <tr><td><input type=submit value="Add Route Table" name="addRT" /></td></tr>
+  </table>
+</form>
