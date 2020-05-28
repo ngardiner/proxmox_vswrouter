@@ -13,7 +13,7 @@ Project Aim:
    * Model functionality on the VMWare Workstation VMNet functionality - allow easy spinning up of networks, primarily for lab testing, but with richer functionality and a web interface.
 
 ## Introduction
-The purpose of this project is to put together a particular network pattern useful for quickly spinning up and down virtual networks using more than one Proxmox host. This is to hopefully provide a similar ease of use to VMWare VMNet interfaces in VMWare workstation, but without the limitations.
+The purpose of this project is to put together a particular network pattern useful for quickly spinning up and down virtual networks using more than one Proxmox host. This is to hopefully provide a similar ease of use to VMWare VMNet interfaces in VMWare workstation, but without the limitations of single-host virtual networking.
 
 To do this, we offer a simple web interface with the following features:
 
@@ -46,7 +46,7 @@ You should deploy 2 Containers or VMs if you are running in HA mode. Keep in min
 ```
 cd /var/www/html
 rm index.html
-git clone https://github.com/ngardiner/proxmox_vswrouter .\
+git clone https://github.com/ngardiner/proxmox_vswrouter .
 chown -R www-data:www-data /var/www/html
 ```
 
