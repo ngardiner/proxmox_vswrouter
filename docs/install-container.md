@@ -61,14 +61,6 @@ ovs-vsctl add-br vmbr1
 ovs-vsctl add-port vmbr1 eth0
 ```
 
-If you want to create Q-in-Q switches, you'll need to create those AFTER defining this in the webgui. Remember, this is very temporary.
-
-```
-ovs-vsctl add-br vmbr2
-ovs-vsctl add-port vmbr2 vmbr2trunk -- set interface vmbr2trunk type=patch -- set interface vmbr2trunk options:peer=vmbr1vl901
-ovs-vsctl add-port vmbr1 vmbr1vl901 -- set interface vmbr1vl901 type=patch -- set interface vmbr1vl901 options:peer=vmbr2trunk
-```
-
 6. Add an interface which covers your management IP using the web interface.
 
    * Remove the old interface using the ip link command:
