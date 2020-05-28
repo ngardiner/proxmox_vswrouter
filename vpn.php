@@ -24,7 +24,7 @@
       print "<td>".$server['port']."</td>";
       print "<td>".$server['network']."/".$server['mask']."</td>";
       print "<td>".$server['desc']."</td>";
-      print "<td><a href='#'>dhparam</a> | ";
+      print "<td><a href='get.php?action=getDHP&server=".$server['name']."'>dhparam</a> | ";
       print "<a href='#'>Server Config</a> | ";
       print "<a href='#'>Client Config</a></td>";
       print "<td>Delete</td>";
@@ -84,7 +84,7 @@ Host <input>
       print "<td>".$ca['country']."</td>";
       print "<td>".$ca['state']."</td>";
       print "<td>".$ca['org']."</td>";
-      print "<td><a href='#'>CA Cert</a></td>";
+      print "<td><a href='get.php?action=getCACert&ca=".$ca['name']."'>CA Cert</a></td>";
       print "</tr>";
     }
   ?>
@@ -102,8 +102,30 @@ Host <input>
 
 <table class="table">
   <tr>
-    <th>VPN Certificates</th>
+    <th colspan=4>VPN Certificates</th>
   </tr>
+  <tr>
+    <th>Name</th>
+    <th>CA Name</th>
+    <th>Download</th>
+    <th>Action</th>
+  </tr>
+  <?php
+    $certs = get_vpn_certs();
+    foreach ($certs as $cert) {
+      print "<tr>";
+      print "<td>".$cert['name']."</td>";
+      print "<td>".$cert['ca']."</td>";
+      print "<td>Cert | Key</td>";
+      ?>
+      <form action="post.php" method=POST>
+        <input type=hidden name="certName" value="<?php print $cert['name']; ?>" />
+        <td><input type=submit name="delVPNCert" value="Delete" /></td>
+      </form>
+      <?php
+      print "</tr>";
+    }
+  ?>
 </table>
 
 <form action="post.php" method=POST>

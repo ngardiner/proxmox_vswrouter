@@ -59,6 +59,13 @@
       $serial = file_get_contents("/tmp/serial");
       ca_set_serial($_POST['certCA'], $serial);
       unlink("/tmp/serial");
+
+      # Add VPN Certificate to list
+      if (! add_vpn_cert($_POST['certName'], $_POST['certCA'], $svrcrt, $key)) {
+        $redirect = "/?page=vpn";
+        header("Location: $redirect");
+      }
+
     }
   }
   if (isset($_POST['addVPNServer'])) {
@@ -66,6 +73,16 @@
     $dhparam = ca_make_dh(2048);
 
     if (! add_vpn_server($_POST['serverName'], $dhparam, $_POST['serverProto'], $_POST['serverPort'], $_POST['serverNetwork'], $_POST['serverMask'], $_POST['serverCA'], $_POST['serverDesc'])) {
+      $redirect = "/?page=vpn";
+      header("Location: $redirect");
+    } else {
+      ?>
+      <h1>An error occurred</h1>
+      <?php
+    }
+  }
+  if (isset($_POST['delVPNCert'])) {
+    if (! del_vpn_cert($_POST['certName'])) {
       $redirect = "/?page=vpn";
       header("Location: $redirect");
     } else {

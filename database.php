@@ -33,6 +33,8 @@ if (! file_exists("database.db3")) {
     $sth->execute();
     $sth = $dbh->prepare("CREATE TABLE vpn_cert_ca (name varchar(24), key varchar(2048), cert varchar(2048), country varchar(2), state varchar(10), org varchar(24), certdb varchar(16384) DEFAULT \"\", serial varchar(4) DEFAULT \"00\", primary key(name))");
     $sth->execute();
+    $sth = $dbh->prepare("CREATE TABLE vpn_cert (name varchar(24), ca varchar(24), cert varchar(4096), key varchar(4096), primary key (name, ca))");
+    $sth->execute();
     $sth = $dbh->prepare("CREATE TABLE vpn_server (name varchar(24), dhparam varchar(8192), proto varchar(3), port int, network varchar(15), mask int, ca_name varchar(24), desc varchar(128), primary key(name))");
     $sth->execute();
   }
@@ -92,6 +94,18 @@ function add_vpn_ca($name, $key, $cert, $country, $state, $org) {
   $sth = $dbh->prepare("INSERT INTO vpn_cert_ca (name, key, cert, country, state, org) VALUES (:name, :key, :cert, :country, :state, :org)");
   if ($sth) {
     $sth->execute(array(':name' => $name, ':key' => $key, ':cert' => $cert, ':country' => $country, ':state' => $state, ':org' => $org));
+    return 0;
+  } else {
+    print_r($dbh->errorInfo());
+    return 1;
+  }
+}
+
+function add_vpn_cert($name, $ca, $cert, $key) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("INSERT INTO vpn_cert (name, ca, cert, key) VALUES (:name, :ca, :cert, :key)");
+  if ($sth) {
+    $sth->execute(array(':name' => $name, ':ca' => $ca, ':cert' => $cert, ':key' => $key));
     return 0;
   } else {
     print_r($dbh->errorInfo());
@@ -180,6 +194,18 @@ function del_vlan($switch, $vlan) {
     return 1;
   }
 }         
+
+function del_vpn_cert($cert_name) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("DELETE FROM vpn_cert WHERE name = :name");
+  if ($sth) {
+    $sth->execute(array(':name' => $cert_name));
+    return 0;
+  } else {
+    print_r($dbh->errorInfo());
+    return 1;
+  }
+}
 
 function get_checked($setting, $value) {
   # Mark a selectbox option if the setting matches
@@ -283,6 +309,26 @@ function get_vpn_ca() {
   $sth = $dbh->prepare("SELECT * FROM vpn_cert_ca");
   $sth->execute();
   return $sth->fetchAll();
+}
+
+function get_vpn_ca_cert($ca_name) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT cert FROM vpn_cert_ca WHERE name = :name");
+  if ($sth) {
+    $sth->execute(array(':name' => $ca_name));
+    return $sth->fetch()[0];
+  }
+}
+
+function get_vpn_certs() {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT * FROM vpn_cert");
+  if ($sth) {
+    $sth->execute();
+    return $sth->fetchAll();
+  } else {
+    return "<b><font color='red'>Error: Database Query Failed</font></b>";
+  }
 }
 
 function get_vpn_server() {
