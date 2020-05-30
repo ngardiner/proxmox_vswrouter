@@ -1,6 +1,6 @@
 <?php
-  include_once("database.php");
-  include_once("lib.php");
+  include_once("lib/database.php");
+  include_once("lib/lib.php");
 ?>
 <table class="table">
   <tr>
@@ -25,7 +25,7 @@
       print "<td>".$server['network']."/".$server['mask']."</td>";
       print "<td>".$server['desc']."</td>";
       print "<td><a href='get.php?action=getDHP&server=".$server['name']."'>dhparam</a> | ";
-      print "<a href='#'>Server Config</a> | ";
+      print "<a href='get.php?action=getVPNServerConfig&name=".$server['name']."'>Server Config</a> | ";
       print "<a href='#'>Client Config</a></td>";
       print "<td>Delete</td>";
       print "</tr>";

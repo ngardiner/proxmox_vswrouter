@@ -1,6 +1,6 @@
 <?php
-  include_once("database.php");
-  include_once("lib.php");
+  include_once("lib/database.php");
+  include_once("lib/lib.php");
 ?>
 <table class="table">
 <?php

@@ -1,6 +1,6 @@
 <?php
-  include_once("ca_func.php");
-  include_once("database.php");
+  include_once("lib/ca_func.php");
+  include_once("lib/database.php");
 
   if (isset($_POST['addRT'])) {
     if (! add_route_table($_POST['rtID'], $_POST['rtName'], $_POST['rtDesc'])) {

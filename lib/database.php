@@ -338,6 +338,26 @@ function get_vpn_server() {
   return $sth->fetchAll();
 }
 
+function get_vpn_server_dh($name) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT dhparam FROM vpn_server WHERE name = :name");
+  if ($sth) {
+    $sth->execute(Array(':name' => $name));
+    return $sth->fetch()[0];
+  }
+}
+
+function get_vpn_server_name($name) {
+  $dbh = new PDO("sqlite:database.db3");
+  $sth = $dbh->prepare("SELECT * FROM vpn_server WHERE name = :name");
+  if ($sth) {
+    $sth->execute(Array(':name' => $name));
+    return $sth->fetch();
+  } else {
+    return 0;
+  }
+}
+
 function set_setting($setting, $value) {
   $dbh = new PDO("sqlite:database.db3");
   $sth = $dbh->prepare("REPLACE INTO settings (setting, value) VALUES (:setting, :value)");
