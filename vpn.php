@@ -2,10 +2,88 @@
   include_once("lib/database.php");
   include_once("lib/lib.php");
 ?>
+<script language="JavaScript">
+    $(document).ready(function() { 
+      $('#add-vpn-server').click(function() { 
+        editVPN("") 
+      })
+    });
+
+    function delVPN(server) {
+      $.ajax({
+        url: "ajax/vpn.php",
+        type: 'POST',
+        data: "req=delVPNServer&server="+server,
+        dataType: 'html',
+        success: function(status) {
+            $('#ModalPopup .modal-title').html("Delete VPN Server");
+            $('#ModalPopup .modal-body').html(status);
+            $('#ModalPopup').modal('show')
+        },
+      })
+      $.ajax({
+        url: "ajax/vpn.php",
+        type: 'POST',
+        data: "req=delVPNServerFooter&server="+server,
+        dataType: 'html',
+        success: function(status) {
+            $('#ModalPopup .modal-footer').html(status);
+        },
+      })
+    }
+
+    function editVPN(server) {
+      $.ajax({
+        url: "ajax/vpn.php",
+        type: 'POST',
+        data: "req=editVPN&server="+server,
+        dataType: 'html',
+        success: function(status) {
+          if (server) {
+            $('#ModalPopup .modal-title').html("Edit VPN Server");
+          } else {
+            $('#ModalPopup .modal-title').html("Add VPN Server");
+          }
+          $('#ModalPopup .modal-body').html(status);
+          $('#ModalPopup').modal('show')
+        },
+      });
+      $.ajax({
+        url: "ajax/vpn.php",
+        type: 'POST',
+        data: "req=editVPNFooter&server="+server,
+        dataType: 'html',
+        success: function(status) {
+            $('#ModalPopup .modal-footer').html(status);
+        },
+      })
+    }
+</script>
+ <div id="ModalPopup" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                </h4>
+                <button type="button" class="close" data-dismiss="modal">
+                    &times;</button>
+            </div>
+            <div class="modal-body">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-dismiss="modal">
+                    Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 <table class="table">
-  <tr>
-    <th colspan=6>VPN Servers</th>
-  </tr>
+  <thead class="thead-light">
+    <tr>
+      <th colspan=7>VPN Servers <a href="#" id='add-vpn-server' class="btn btn-outline-primary btn-sm float-right">Add</a></th>
+    </tr>
+  </thead>
   <tr>
     <th>Name</th>
     <th>Protocol</th>
@@ -17,6 +95,7 @@
   </tr>
   <?php
     $servers = get_vpn_server();
+    $count = 1;
     foreach ($servers as $server) {
       print "<tr>";
       print "<td>".$server['name']."</td>";
@@ -27,37 +106,25 @@
       print "<td><a href='get.php?action=getDHP&server=".$server['name']."'>dhparam</a> | ";
       print "<a href='get.php?action=getVPNServerConfig&name=".$server['name']."'>Server Config</a> | ";
       print "<a href='#'>Client Config</a></td>";
-      print "<td>Delete</td>";
+
+      # Define onclick functions for edit and delete buttons
+      print "<script language=\"JavaScript\">$(document).ready(function() { $('#del-vpn-server-".$count."').click(function() { delVPN('".$server['name']."') })});</script>";
+      print "<script language=\"JavaScript\">$(document).ready(function() { $('#edit-vpn-server-".$count."').click(function() { editVPN('".$server['name']."') })});</script>";
+
+      # And then print the buttons
+      print "<td><a href='#' rel='details' id='edit-vpn-server-".$count."' class='btn btn-success' title='Edit'>Edit</a> <a href='#' rel='details' id='del-vpn-server-".$count."' class='btn btn-danger' title='Delete'>Delete</a></td>";
       print "</tr>";
+      $count++;
     }
   ?>
 </table>
 
-<form action="post.php" method=POST>
-  Server Name: <input name="serverName" size=10 /> Protocol:
-  <select name="serverProto">
-    <option value="tcp">TCP</option>
-    <option value="udp">UDP</option>
-  </select>
-  Port <input name="serverPort" size=4 />
-  VPN Network <input name="serverNetwork" size=11 />
-  Mask Length <input name="serverMask" size=1 />
-  CA: <select name="serverCA">
-    <?php
-      $cas = get_vpn_ca();
-      foreach ($cas as $ca) {
-        print "<option value='".$ca['name']."'>".$ca['name']."</option>";
-      }
-    ?>
-  </select>
-  Description <input name="serverDesc" size=60 />
-  <input type=submit name="addVPNServer" value="Add Server" />
-</form>
-
 <table class="table">
-  <tr>
-    <th>VPN Clients</th>
-  </tr>
+  <thead class="thead-light">
+    <tr>
+      <th>VPN Clients <a href="#" id='add-vpn-client' class="btn btn-outline-primary btn-sm float-right">Add</a></th>
+    </tr>
+  </thead>
 </table>
 
 Client Name <input> Protocol
@@ -66,9 +133,11 @@ Client Name <input> Protocol
 Host <input>
 
 <table class="table">
-  <tr>
-    <th colspan=4>Certificate Authorities</th>
-  </tr>
+  <thead class="thead-light">
+    <tr>
+      <th colspan=5>Certificate Authorities <a href="#" id='add-vpn-ca' class="btn btn-outline-primary btn-sm float-right">Add</a></th>
+    </tr>
+  </thead>
   <tr>
     <th>Name</th>
     <th>Country</th>
@@ -101,9 +170,11 @@ Host <input>
 </form>
 
 <table class="table">
-  <tr>
-    <th colspan=4>VPN Certificates</th>
-  </tr>
+  <thead class="thead-light">
+    <tr>
+      <th colspan=4>VPN Certificates</th>
+    </tr>
+  </thead>
   <tr>
     <th>Name</th>
     <th>CA Name</th>

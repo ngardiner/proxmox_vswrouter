@@ -1,8 +1,18 @@
 <?php
 
+function get_dbfile() {
+  # Define database file when called from different locations
+  $path = "";
+  if (basename(getcwd()) == "ajax" || basename(getcwd()) == "lib") {
+    $path = "../";
+  }
+  $dbfile = $path . "database.db3";
+  return $dbfile;
+}
+
 # Check database exists
-if (! file_exists("database.db3")) {
-  $dbh = new PDO("sqlite:database.db3");
+if (! file_exists(get_dbfile())) {
+  $dbh = new PDO("sqlite:".get_dbfile());
 
   $sth = $dbh->prepare("CREATE TABLE settings (setting varchar(24), value varchar(64), primary key(setting))");
   $sth->execute();
@@ -22,7 +32,7 @@ if (! file_exists("database.db3")) {
 } else {
   # Check database version
   if (get_setting("db_version") < 2) {
-    $dbh = new PDO("sqlite:database.db3");
+    $dbh = new PDO("sqlite:".get_dbfile());
     $sth = $dbh->prepare("ALTER TABLE switch_vlans ADD ha_ipa int");
     $sth->execute();
     $sth = $dbh->prepare("ALTER TABLE switch_vlans ADD ha_ipb int");
@@ -40,7 +50,7 @@ if (! file_exists("database.db3")) {
   }
   if (get_setting("db_version") < 3) {
     # Next schema update goes here
-	  # $dbh = new PDO("sqlite:database.db3");
+	  # $dbh = new PDO("sqlite:".get_dbfile());
 	  # $sth = $dbh->prepare("UPDATE settings SET value = '2' where setting = 'db_version'");
 	  # $sth->execute();
   }
@@ -58,14 +68,14 @@ function add_switch($name, $type, $uplink_type, $iface, $switch, $vlan) {
     $uplink_iface = $switch;
     $uplink_vlan = $vlan;
   }
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("INSERT INTO switches (name, type, uplink_type, uplink_interface, uplink_vlan) VALUES (:name, :type, :uplink_type, :uplink_interface, :uplink_vlan)");
   $sth->execute(array(':name' => $name, ':type' => $type, ':uplink_type' => $uplink_type, ':uplink_interface' => $uplink_iface, ':uplink_vlan' => $uplink_vlan));
   return 0;
 }
 
 function add_route_table($rtId, $rtName, $rtDesc) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("INSERT INTO route_tables (rt_name, rt_id, rt_desc) VALUES (:rt_name, :rt_id, :rt_desc)");
   if ($sth) {
     $sth->execute(array('rt_name' => $rtName, 'rt_id' => $rtId, 'rt_desc' => $rtDesc));
@@ -78,7 +88,7 @@ function add_route_table($rtId, $rtName, $rtDesc) {
 }
 
 function add_vlan($switchName, $vlanID, $ipAddress, $maskLength, $rtTable, $vlanDesc) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("INSERT INTO switch_vlans (switch_name, vlan_id, ip_address, mask_length, rt_table, desc) VALUES (:switch_name, :vlan_id, :ip_address, :mask_length, :rt_table, :desc)");
   if ($sth) {
     $sth->execute(array(':switch_name' => $switchName, ':vlan_id' => $vlanID, ':ip_address' => $ipAddress, ':mask_length' => $maskLength, ':rt_table' => $rtTable, ':desc' => $vlanDesc));
@@ -90,7 +100,7 @@ function add_vlan($switchName, $vlanID, $ipAddress, $maskLength, $rtTable, $vlan
 }
 
 function add_vpn_ca($name, $key, $cert, $country, $state, $org) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("INSERT INTO vpn_cert_ca (name, key, cert, country, state, org) VALUES (:name, :key, :cert, :country, :state, :org)");
   if ($sth) {
     $sth->execute(array(':name' => $name, ':key' => $key, ':cert' => $cert, ':country' => $country, ':state' => $state, ':org' => $org));
@@ -102,7 +112,7 @@ function add_vpn_ca($name, $key, $cert, $country, $state, $org) {
 }
 
 function add_vpn_cert($name, $ca, $cert, $key) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("INSERT INTO vpn_cert (name, ca, cert, key) VALUES (:name, :ca, :cert, :key)");
   if ($sth) {
     $sth->execute(array(':name' => $name, ':ca' => $ca, ':cert' => $cert, ':key' => $key));
@@ -114,7 +124,7 @@ function add_vpn_cert($name, $ca, $cert, $key) {
 }
 
 function add_vpn_server($name, $dhparam, $proto, $port, $network, $mask, $ca, $desc) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("INSERT INTO vpn_server (name, dhparam, proto, port, network, mask, ca_name, desc) values (:name, :dhparam, :proto, :port, :network, :mask, :ca_name, :desc)");
   if ($sth) {
     $sth->execute(array(':name' => $name, ':dhparam' => $dhparam, ':proto' => $proto, ':port' => $port, ':network' => $network, ':mask' => $mask, ':ca_name' => $ca, ':desc' => $desc));
@@ -126,7 +136,7 @@ function add_vpn_server($name, $dhparam, $proto, $port, $network, $mask, $ca, $d
 }
 
 function ca_get_cert($name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT cert FROM vpn_cert_ca WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $name));
@@ -135,7 +145,7 @@ function ca_get_cert($name) {
 }
 
 function ca_get_index($name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT certdb FROM vpn_cert_ca WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $name));
@@ -144,7 +154,7 @@ function ca_get_index($name) {
 }
 
 function ca_get_key($name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT key FROM vpn_cert_ca WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $name));
@@ -153,7 +163,7 @@ function ca_get_key($name) {
 }
 
 function ca_get_serial($name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT serial FROM vpn_cert_ca WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $name));
@@ -162,7 +172,7 @@ function ca_get_serial($name) {
 }
 
 function ca_set_index($name, $value) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("UPDATE vpn_cert_ca SET certdb = :certdb WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $name, ':certdb' => $value));
@@ -173,7 +183,7 @@ function ca_set_index($name, $value) {
 }
 
 function ca_set_serial($name, $value) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("UPDATE vpn_cert_ca SET serial = :serial WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $name, ':serial' => $value));
@@ -184,7 +194,7 @@ function ca_set_serial($name, $value) {
 }
 
 function del_vlan($switch, $vlan) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("DELETE FROM switch_vlans WHERE switch_name = :switch_name AND vlan_id = :vlan_id");
   if ($sth) {
     $sth->execute(array(':switch_name' => $switch, ':vlan_id' => $vlan));
@@ -196,10 +206,22 @@ function del_vlan($switch, $vlan) {
 }         
 
 function del_vpn_cert($cert_name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("DELETE FROM vpn_cert WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $cert_name));
+    return 0;
+  } else {
+    print_r($dbh->errorInfo());
+    return 1;
+  }
+}
+
+function del_vpn_server($server) {
+  $dbh = new PDO("sqlite:".get_dbfile());
+  $sth = $dbh->prepare("DELETE FROM vpn_server WHERE name = :name");
+  if ($sth) {
+    $sth->execute(array(':name' => $server));
     return 0;
   } else {
     print_r($dbh->errorInfo());
@@ -218,7 +240,7 @@ function get_rt_table_name($rt_id) {
   if ($rt_id == "99999") {
     return "<i>Reserved</i>";
   }
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT rt_name FROM route_tables WHERE rt_id = :rt_id");
   if ($sth) {
     $sth->execute(array(':rt_id' => $rt_id));
@@ -230,7 +252,7 @@ function get_rt_table_name($rt_id) {
 }
 
 function get_rt_routes($rt_id) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM routes WHERE rt_id = :rt_id ORDER BY dst_ip, dst_mask ASC");
   if ($sth) {
     $sth->execute(array(':rt_id' => $rt_id));
@@ -241,7 +263,7 @@ function get_rt_routes($rt_id) {
 }
 
 function get_rt_tables() {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM route_tables ORDER BY rt_id ASC");
   if ($sth) {
     $sth->execute();
@@ -259,7 +281,7 @@ function get_select($setting, $value) {
 }
 
 function get_setting($setting) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT value FROM settings WHERE setting = :setting");
   $sth->execute(array(':setting' => $setting));
   $res = $sth->fetch();
@@ -271,7 +293,7 @@ function get_setting($setting) {
 }
 
 function get_settings() {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM settings");
   if ($sth) {
     $sth->execute();
@@ -287,7 +309,7 @@ function get_settings() {
 }
 
 function get_switches() {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM switches ORDER BY name ASC");
   if ($sth) {
     $sth->execute();
@@ -298,21 +320,21 @@ function get_switches() {
 }
 
 function get_switch_vlans($switchname) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM switch_vlans WHERE switch_name = :switchname ORDER BY vlan_id ASC");
   $sth->execute(array(':switchname' => $switchname));
   return $sth->fetchAll();
 }
 
 function get_vpn_ca() {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM vpn_cert_ca");
   $sth->execute();
   return $sth->fetchAll();
 }
 
 function get_vpn_ca_cert($ca_name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT cert FROM vpn_cert_ca WHERE name = :name");
   if ($sth) {
     $sth->execute(array(':name' => $ca_name));
@@ -321,7 +343,7 @@ function get_vpn_ca_cert($ca_name) {
 }
 
 function get_vpn_certs() {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM vpn_cert");
   if ($sth) {
     $sth->execute();
@@ -332,14 +354,14 @@ function get_vpn_certs() {
 }
 
 function get_vpn_server() {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM vpn_server");
   $sth->execute();
   return $sth->fetchAll();
 }
 
 function get_vpn_server_dh($name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT dhparam FROM vpn_server WHERE name = :name");
   if ($sth) {
     $sth->execute(Array(':name' => $name));
@@ -348,7 +370,7 @@ function get_vpn_server_dh($name) {
 }
 
 function get_vpn_server_name($name) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("SELECT * FROM vpn_server WHERE name = :name");
   if ($sth) {
     $sth->execute(Array(':name' => $name));
@@ -359,7 +381,7 @@ function get_vpn_server_name($name) {
 }
 
 function set_setting($setting, $value) {
-  $dbh = new PDO("sqlite:database.db3");
+  $dbh = new PDO("sqlite:".get_dbfile());
   $sth = $dbh->prepare("REPLACE INTO settings (setting, value) VALUES (:setting, :value)");
   $sth->execute(array(':setting' => $setting, ':value' => $value));
   return 0;
